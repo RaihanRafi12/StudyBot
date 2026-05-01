@@ -195,12 +195,7 @@ docker run -p 3000:3000 studybot
 4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
-### Guidelines
-- Follow existing code structure and conventions
-- Use TypeScript for type safety
-- Maintain responsive design principles
-- Test on multiple screen sizes
-- Run `npm run build` before submitting a PR
+Please read [GUIDELINES.md](GUIDELINES.md) for full details on code style, git workflow, PR rules, role-based development, and testing expectations.
 
 ---
 
