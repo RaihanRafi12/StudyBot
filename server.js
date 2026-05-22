@@ -66,6 +66,42 @@ app.post('/api/signup', async (req, res) => {
     }
 });
 
+// 3. User Login Route
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // Step A: Find the user in the database by their email
+        const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+
+        // If the array is empty, the email doesn't exist
+        if (users.length === 0) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
+
+        const user = users; // Grab the first (and only) matched user
+
+        // Step B: Compare the typed password with the scrambled hash in the database
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+
+        if (!isMatch) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
+
+        // Step C: Remove the password hash from the object before sending it to the frontend (Security!)
+        delete user.password_hash;
+
+        // Send the success response and the user's profile data
+        res.status(200).json({
+            message: "Login successful!",
+            user: user
+        });
+
+    } catch (error) {
+        console.error("Login Error:", error);
+        res.status(500).json({ message: "Server error during login" });
+    }
+});
 // --- Start Server ---
 const PORT = 5000;
 app.listen(PORT, () => {
