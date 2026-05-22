@@ -30,27 +30,32 @@ app.get('/api/status', (req, res) => {
 // 2. User Signup Route
 app.post('/api/signup', async (req, res) => {
     try {
-        // Extract the data sent from your React frontend
-        const { name, email, password, role, institution, major, study_year } = req.body;
+        // Notice we are grabbing 'year' instead of 'study_year' to match React
+        const { name, email, password, role, institution, major, year } = req.body;
 
-        // Scramble the password before saving it to the database (Security!)
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Generate a unique ID for the user
         const userId = 'user-' + Date.now();
-        
-        // Give new users 20 bonus points (matching your React logic!)
         const initialPoints = 20;
 
-        // Insert the new user into the MySQL database
+        // We use || null to ensure empty fields don't crash MySQL
         const [result] = await db.execute(
             `INSERT INTO users (id, name, email, password_hash, role, institution, major, study_year, points) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [userId, name, email, hashedPassword, role || 'student', institution, major, study_year, initialPoints]
+            [
+                userId, 
+                name, 
+                email, 
+                hashedPassword, 
+                role || 'student', 
+                institution || null, 
+                major || null, 
+                year || null, 
+                initialPoints
+            ]
         );
 
-        // Send a success response back to React
         res.status(201).json({ 
             message: "User account created successfully!",
             user: { id: userId, name, email, role, points: initialPoints }
@@ -58,48 +63,104 @@ app.post('/api/signup', async (req, res) => {
 
     } catch (error) {
         console.error("Signup Error:", error);
-        // If the email already exists, MySQL throws an error code ER_DUP_ENTRY
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(400).json({ message: "An account with this email already exists." });
         }
         res.status(500).json({ message: "Server error during signup" });
     }
 });
-
 // 3. User Login Route
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Step A: Find the user in the database by their email
-        const [users] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+        if (!email || !password) {
+            return res.status(400).json({ message: "Please enter both email and password." });
+        }
 
-        // If the array is empty, the email doesn't exist
-        if (users.length === 0) {
+        // MySQL returns an array of rows
+        const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (rows.length === 0) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        const user = users; // Grab the first (and only) matched user
+        // 🚨 THE FIX: Grab the first object out of the array
+        const user = rows; 
 
-        // Step B: Compare the typed password with the scrambled hash in the database
-        const isMatch = await bcrypt.compare(password, user.password_hash);
+        // SAFETY CHECK
+        const savedPassword = user.password_hash || user.password;
+
+        if (!savedPassword) {
+            return res.status(500).json({ message: "Server error: Password column missing in database." });
+        }
+
+        // Compare the passwords safely
+        const isMatch = await bcrypt.compare(password, savedPassword);
 
         if (!isMatch) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        // Step C: Remove the password hash from the object before sending it to the frontend (Security!)
-        delete user.password_hash;
+        // Prepare the user data to send back to React
+        const userResponse = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            institution: user.institution,
+            major: user.major,
+            year: user.study_year,
+            points: user.points
+        };
 
-        // Send the success response and the user's profile data
         res.status(200).json({
             message: "Login successful!",
-            user: user
+            user: userResponse
         });
 
     } catch (error) {
-        console.error("Login Error:", error);
+        console.error("LOGIN FAILED:", error);
         res.status(500).json({ message: "Server error during login" });
+    }
+});
+
+// 4. Upload Resource Route
+app.post('/api/resources', async (req, res) => {
+    try {
+        const { title, category, description, isPublic, uploaderId } = req.body;
+        
+        // Generate a unique ID for the resource
+        const resourceId = 'res-' + Date.now();
+
+        // 1. Insert the new resource into the database
+        await db.execute(
+            `INSERT INTO resources (id, title, category, description, is_public, uploader_id) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [resourceId, title, category, description, isPublic, uploaderId]
+        );
+
+        // 2. Award the user +2 points for uploading
+        await db.execute(
+            `UPDATE users SET points = points + 2 WHERE id = ?`,
+            [uploaderId]
+        );
+
+        res.status(201).json({ 
+            message: "Resource uploaded successfully!", 
+            resource: {
+                id: resourceId,
+                title,
+                category,
+                description,
+                isPublic,
+                uploaderId
+            }
+        });
+
+    } catch (error) {
+        console.error("Upload Error:", error);
+        res.status(500).json({ message: "Server error during upload" });
     }
 });
 // --- Start Server ---
