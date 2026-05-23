@@ -1,5 +1,8 @@
 {
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> database-setup
   "name": "@figma/my-make-file",
   "private": true,
   "version": "0.0.1",
@@ -77,6 +80,7 @@
     }
   }
 }
+<<<<<<< HEAD
 =======
   "name": "studybot-backend",
   "version": "1.0.0",
@@ -104,3 +108,5 @@
 
 
 >>>>>>> backend-dev
+=======
+>>>>>>> database-setup

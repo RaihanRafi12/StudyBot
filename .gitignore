@@ -1,4 +1,7 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> database-setup
 node_modules/
 dist/
 .DS_Store
@@ -9,6 +12,9 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+<<<<<<< HEAD
 =======
 node_modules/ 
 >>>>>>> backend-dev
+=======
+>>>>>>> database-setup
