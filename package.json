@@ -1,15 +1,13 @@
 {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> database-setup
   "name": "@figma/my-make-file",
   "private": true,
   "version": "0.0.1",
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "test:api": "python testing/run_with_servers.py",
+    "test:all": "python testing/run_with_servers.py --selenium"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -43,6 +41,7 @@
     "@radix-ui/react-toggle": "1.1.2",
     "@radix-ui/react-toggle-group": "1.1.2",
     "@radix-ui/react-tooltip": "1.1.8",
+    "axios": "^1.16.1",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
@@ -80,33 +79,3 @@
     }
   }
 }
-<<<<<<< HEAD
-=======
-  "name": "studybot-backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "dev": "nodemon server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "bcrypt": "^6.0.0",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.22.3"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.14"
-  }
-}
-
-
-
->>>>>>> backend-dev
-=======
->>>>>>> database-setup
