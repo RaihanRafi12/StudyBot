@@ -1,0 +1,25 @@
+name: Sync to Supabase
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Project
+        run: supabase link --project-ref ${{ secrets.PRODUCTION_PROJECT_ID }} --password ${{ secrets.PRODUCTION_DB_PASSWORD }}
+
+      - name: Deploy Migrations
+        run: supabase db push
