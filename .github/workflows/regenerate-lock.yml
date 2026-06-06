@@ -1,1 +1,37 @@
+name: Regenerate package-lock.json
 
+on:
+  workflow_dispatch:
+
+jobs:
+  regenerate-lock:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout fix branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/regenerate-package-lock
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Delete corrupted lock file and node_modules
+        run: |
+          rm -rf node_modules package-lock.json
+      
+      - name: Regenerate package-lock.json
+        run: npm install
+      
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package-lock.json
+          git commit -m "chore: regenerate package-lock.json with complete dependencies"
+          git push origin fix/regenerate-package-lock
