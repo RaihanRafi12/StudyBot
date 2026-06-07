@@ -1,5 +1,5 @@
 """
-StudyBot Django Settings
+StudyBot Django Settings - XAMPP MySQL Configuration
 """
 from pathlib import Path
 from decouple import config
@@ -26,16 +26,19 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'studybot.urls'
 WSGI_APPLICATION = 'studybot.wsgi.application'
 
-# ── Database (Supabase / PostgreSQL) ──────────────────────────
+# ── Database (XAMPP MySQL - resource_hub1) ──────────────────────────
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME':     config('DB_NAME',     default='postgres'),
-        'USER':     config('DB_USER',     default='postgres'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME':     config('DB_NAME',     default='resource_hub1'),
+        'USER':     config('DB_USER',     default='root'),
         'PASSWORD': config('DB_PASSWORD', default=''),
         'HOST':     config('DB_HOST',     default='localhost'),
-        'PORT':     config('DB_PORT',     default='5432'),
-        'OPTIONS':  {'sslmode': config('DB_SSLMODE', default='require')},
+        'PORT':     config('DB_PORT',     default='3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        }
     }
 }
 
