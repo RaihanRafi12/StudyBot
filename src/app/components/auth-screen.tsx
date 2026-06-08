@@ -15,7 +15,7 @@ import { motion } from 'motion/react';
 import { GraduationCap, Gift } from 'lucide-react';
 
 interface AuthScreenProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string) => void | Promise<void>;
   onSignup: (data: {
     name: string;
     email: string;
@@ -24,10 +24,11 @@ interface AuthScreenProps {
     institution?: string;
     major?: string;
     year?: string;
-  }) => void;
+  }) => void | Promise<void>;
+  loading?: boolean;
 }
 
-export function AuthScreen({ onLogin, onSignup }: AuthScreenProps) {
+export function AuthScreen({ onLogin, onSignup, loading = false }: AuthScreenProps) {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   
@@ -124,8 +125,8 @@ export function AuthScreen({ onLogin, onSignup }: AuthScreenProps) {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" size="lg">
-                    Login
+                  <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                    {loading ? 'Signing in...' : 'Login'}
                   </Button>
                 </form>
               </TabsContent>
@@ -246,8 +247,8 @@ export function AuthScreen({ onLogin, onSignup }: AuthScreenProps) {
                     </p>
                   </div>
                   
-                  <Button type="submit" className="w-full" size="lg">
-                    Create Account
+                  <Button type="submit" className="w-full" size="lg" disabled={loading}>
+                    {loading ? 'Creating account...' : 'Create Account'}
                   </Button>
                 </form>
               </TabsContent>

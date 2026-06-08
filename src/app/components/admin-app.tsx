@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminHeader } from './admin-header';
 import { AdminSidebar } from './admin-sidebar';
 import { AdminDashboard } from './admin-dashboard';
@@ -11,6 +11,8 @@ import { EditResourceModal } from './edit-resource-modal';
 import { CourseContentModal } from './course-content-modal';
 import { Toaster } from './ui/sonner';
 import { toast } from 'sonner';
+import { admin, resources as resourcesApi } from '../services/api';
+import { getErrorMessage, mapApiResource, normalizeCategory } from '../services/mappers';
 
 interface Resource {
   id: string;
@@ -60,186 +62,225 @@ export function AdminApp({
     }
   }, [theme]);
 
-  // Admin data states
-  const [accessRequests, setAccessRequests] = useState([
-    {
-      id: 'req-1',
-      userId: 'user-5',
-      userName: 'James Wilson',
-      resourceId: 'res-3',
-      resourceTitle: 'Web Development Bootcamp',
-      message: 'Need this for my final year project on full-stack development',
-      timestamp: '2 hours ago',
-      status: 'pending',
-    },
-    {
-      id: 'req-2',
-      userId: 'user-14',
-      userName: 'Rachel Green',
-      resourceId: 'res-15',
-      resourceTitle: 'System Design Interview Preparation',
-      message: 'Preparing for job interviews',
-      timestamp: '5 hours ago',
-      status: 'pending',
-    },
-    {
-      id: 'req-3',
-      userId: 'user-10',
-      userName: 'Sarah Martinez',
-      resourceId: 'res-6',
-      resourceTitle: 'Social Media Dashboard',
-      message: 'Need for academic research project',
-      timestamp: '1 day ago',
-      status: 'pending',
-    },
-  ]);
+  const [accessRequests, setAccessRequests] = useState<
+    Array<{
+      id: string;
+      userId: string;
+      userName: string;
+      resourceId: string;
+      resourceTitle: string;
+      message?: string;
+      timestamp: string;
+      status: string;
+    }>
+  >([]);
 
-  const [uploadApprovals, setUploadApprovals] = useState([
-    {
-      id: 'upload-1',
-      userId: 'user-16',
-      userName: 'Tom Anderson',
-      resourceTitle: 'Advanced React Patterns',
-      category: 'Documents',
-      timestamp: '1 hour ago',
-      status: 'pending',
-    },
-    {
-      id: 'upload-2',
-      userId: 'user-11',
-      userName: 'David Lee',
-      resourceTitle: 'Microservices Architecture Guide',
-      category: 'Documents',
-      timestamp: '3 hours ago',
-      status: 'pending',
-    },
-  ]);
+  const [uploadApprovals, setUploadApprovals] = useState<
+    Array<{
+      id: string;
+      userId: string;
+      userName: string;
+      resourceTitle: string;
+      category: string;
+      timestamp: string;
+      status: string;
+    }>
+  >([]);
 
-  const [reportedResources, setReportedResources] = useState([
-    {
-      id: 'report-1',
-      resourceId: 'res-8',
-      resourceTitle: 'Task Management System',
-      reportedBy: 'StudentUser123',
-      reason: 'Contains outdated dependencies and deprecated code',
-      timestamp: '30 minutes ago',
-      status: 'pending',
-    },
-  ]);
+  const [reportedResources, setReportedResources] = useState<
+    Array<{
+      id: string;
+      resourceId: string;
+      resourceTitle: string;
+      reportedBy: string;
+      reason: string;
+      timestamp: string;
+      status: string;
+    }>
+  >([]);
 
-  const [users, setUsers] = useState([
-    {
-      id: 'user-1',
-      name: 'Alex Johnson',
-      email: 'alex.johnson@university.edu',
-      role: 'Student',
-      institution: 'University of Technology',
-      joinDate: 'Dec 10, 2025',
-      points: 24,
-      uploadCount: 5,
-      accessCount: 8,
-      status: 'active',
-    },
-    {
-      id: 'user-5',
-      name: 'James Wilson',
-      email: 'james.wilson@university.edu',
-      role: 'Student',
-      institution: 'State University',
-      joinDate: 'Jan 2, 2026',
-      points: 18,
-      uploadCount: 3,
-      accessCount: 12,
-      status: 'active',
-    },
-    {
-      id: 'user-3',
-      name: 'Prof. Michael Chen',
-      email: 'michael.chen@university.edu',
-      role: 'Faculty',
-      institution: 'University of Technology',
-      joinDate: 'Nov 20, 2025',
-      points: 45,
-      uploadCount: 12,
-      accessCount: 5,
-      status: 'active',
-    },
-  ]);
+  const [users, setUsers] = useState<
+    Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      institution?: string;
+      joinDate: string;
+      points: number;
+      uploadCount: number;
+      accessCount: number;
+      status: string;
+    }>
+  >([]);
 
-  const [activities, setActivities] = useState([
-    {
-      id: 'act-1',
-      userId: 'user-5',
-      userName: 'James Wilson',
-      type: 'upload',
-      message: 'Uploaded "Data Structures Cheat Sheet"',
-      time: '1 hour ago',
-      points: 2,
-    },
-    {
-      id: 'act-2',
-      userId: 'user-1',
-      userName: 'Alex Johnson',
-      type: 'access',
-      message: 'Accessed "Machine Learning Fundamentals"',
-      time: '2 hours ago',
-      points: -4,
-    },
-    {
-      id: 'act-3',
-      userId: 'user-14',
-      userName: 'Rachel Green',
-      type: 'review',
-      message: 'Reviewed "Python Programming Guide" with 5 stars',
-      time: '3 hours ago',
-    },
-  ]);
+  const [activities, setActivities] = useState<
+    Array<{
+      id: string;
+      userId: string;
+      userName: string;
+      type: string;
+      message: string;
+      time: string;
+      points?: number;
+    }>
+  >([]);
 
-  // Admin handlers
-  const handleApproveAccess = (requestId: string) => {
-    setAccessRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'approved' } : r))
-    );
-    toast.success('Access request approved');
+  const [adminResources, setAdminResources] = useState(resources);
+
+  const loadAdminData = useCallback(async () => {
+    try {
+      const [ar, ua, rep, usr, act, res] = await Promise.all([
+        admin.getAccessRequests(),
+        admin.getUploadApprovals(),
+        admin.getReports(),
+        admin.getUsers(),
+        admin.getActivities(),
+        resourcesApi.list({ limit: 100 }),
+      ]);
+
+      setAccessRequests(
+        (ar.data as Array<Record<string, unknown>>).map((r) => ({
+          id: String(r.id),
+          userId: String(r.user_id),
+          userName: String(r.user_name),
+          resourceId: String(r.resource_id),
+          resourceTitle: String(r.resource_title),
+          message: r.message ? String(r.message) : undefined,
+          timestamp: String(r.timestamp),
+          status: String(r.status),
+        })),
+      );
+
+      setUploadApprovals(
+        (ua.data as Array<Record<string, unknown>>).map((u) => ({
+          id: String(u.id),
+          userId: String(u.user_id),
+          userName: String(u.user_name),
+          resourceTitle: String(u.resource_title),
+          category: String(u.category),
+          timestamp: String(u.timestamp),
+          status: String(u.status),
+        })),
+      );
+
+      setReportedResources(
+        (rep.data as Array<Record<string, unknown>>).map((r) => ({
+          id: String(r.id),
+          resourceId: String(r.resource_id),
+          resourceTitle: String(r.resource_title),
+          reportedBy: String(r.reported_by),
+          reason: String(r.reason),
+          timestamp: String(r.timestamp),
+          status: String(r.status),
+        })),
+      );
+
+      setUsers(
+        (usr.data as Array<Record<string, unknown>>).map((u) => ({
+          id: String(u.id),
+          name: String(u.name),
+          email: String(u.email),
+          role: String(u.role).charAt(0).toUpperCase() + String(u.role).slice(1),
+          institution: u.institution ? String(u.institution) : undefined,
+          joinDate: String(u.join_date),
+          points: Number(u.points ?? 0),
+          uploadCount: Number(u.upload_count ?? 0),
+          accessCount: Number(u.access_count ?? 0),
+          status: String(u.status),
+        })),
+      );
+
+      setActivities(
+        (act.data as Array<Record<string, unknown>>).map((a) => ({
+          id: String(a.id),
+          userId: String(a.user_id),
+          userName: String(a.user_name),
+          type: String(a.type),
+          message: String(a.message),
+          time: String(a.time),
+          points: a.points != null ? Number(a.points) : undefined,
+        })),
+      );
+
+      const mapped = (res.data as Record<string, unknown>[]).map(mapApiResource);
+      setAdminResources(mapped);
+      onUpdateResources(mapped);
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not load admin data'));
+    }
+  }, [onUpdateResources]);
+
+  useEffect(() => {
+    loadAdminData();
+  }, [loadAdminData]);
+
+  useEffect(() => {
+    setAdminResources(resources);
+  }, [resources]);
+
+  const handleApproveAccess = async (requestId: string) => {
+    try {
+      await admin.approveAccess(requestId);
+      await loadAdminData();
+      toast.success('Access request approved');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not approve request'));
+    }
   };
 
-  const handleRejectAccess = (requestId: string) => {
-    setAccessRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'rejected' } : r))
-    );
-    toast.info('Access request rejected');
+  const handleRejectAccess = async (requestId: string) => {
+    try {
+      await admin.rejectAccess(requestId);
+      await loadAdminData();
+      toast.info('Access request rejected');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not reject request'));
+    }
   };
 
-  const handleApproveUpload = (uploadId: string) => {
-    setUploadApprovals((prev) =>
-      prev.map((u) => (u.id === uploadId ? { ...u, status: 'approved' } : u))
-    );
-    toast.success('Upload approved');
+  const handleApproveUpload = async (uploadId: string) => {
+    try {
+      await admin.approveUpload(uploadId);
+      await loadAdminData();
+      toast.success('Upload approved');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not approve upload'));
+    }
   };
 
-  const handleRejectUpload = (uploadId: string) => {
-    setUploadApprovals((prev) =>
-      prev.map((u) => (u.id === uploadId ? { ...u, status: 'rejected' } : u))
-    );
-    toast.info('Upload rejected');
+  const handleRejectUpload = async (uploadId: string) => {
+    try {
+      await admin.rejectUpload(uploadId);
+      await loadAdminData();
+      toast.info('Upload rejected');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not reject upload'));
+    }
   };
 
-  const handleResolveReport = (reportId: string) => {
-    setReportedResources((prev) =>
-      prev.map((r) => (r.id === reportId ? { ...r, status: 'resolved' } : r))
-    );
-    toast.success('Report resolved');
+  const handleResolveReport = async (reportId: string) => {
+    try {
+      await admin.resolveReport(reportId);
+      await loadAdminData();
+      toast.success('Report resolved');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not resolve report'));
+    }
   };
 
-  const handleDismissReport = (reportId: string) => {
-    setReportedResources((prev) =>
-      prev.map((r) => (r.id === reportId ? { ...r, status: 'dismissed' } : r))
-    );
-    toast.info('Report dismissed');
+  const handleDismissReport = async (reportId: string) => {
+    try {
+      await admin.dismissReport(reportId);
+      await loadAdminData();
+      toast.info('Report dismissed');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not dismiss report'));
+    }
   };
 
   const handleEditResource = (resourceId: string) => {
-    const resource = resources.find((r) => r.id === resourceId);
+    const resource = adminResources.find((r) => r.id === resourceId);
     if (resource) {
       setSelectedResource(resource);
       // Show course content modal for courses, regular edit modal for other resources
@@ -251,17 +292,37 @@ export function AdminApp({
     }
   };
 
-  const handleDeleteResource = (resourceId: string) => {
-    const updatedResources = resources.filter((r) => r.id !== resourceId);
-    onUpdateResources(updatedResources);
-    toast.success('Resource deleted permanently');
+  const handleDeleteResource = async (resourceId: string) => {
+    try {
+      await resourcesApi.delete(resourceId);
+      const updatedResources = adminResources.filter((r) => r.id !== resourceId);
+      setAdminResources(updatedResources);
+      onUpdateResources(updatedResources);
+      toast.success('Resource deleted permanently');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not delete resource'));
+    }
   };
 
-  const handleApproveResource = (resourceId: string) => {
+  const handleApproveResource = async (resourceId: string) => {
+    const pending = uploadApprovals.find(
+      (u) => u.status === 'pending' && adminResources.some((r) => r.id === resourceId && r.title === u.resourceTitle),
+    );
+    if (pending) {
+      await handleApproveUpload(pending.id);
+      return;
+    }
     toast.success(`Resource ${resourceId} approved`);
   };
 
-  const handleRejectResource = (resourceId: string) => {
+  const handleRejectResource = async (resourceId: string) => {
+    const pending = uploadApprovals.find(
+      (u) => u.status === 'pending' && adminResources.some((r) => r.id === resourceId && r.title === u.resourceTitle),
+    );
+    if (pending) {
+      await handleRejectUpload(pending.id);
+      return;
+    }
     toast.info(`Resource ${resourceId} rejected`);
   };
 
@@ -278,33 +339,51 @@ export function AdminApp({
   };
 
   const handleViewResource = (resourceId: string) => {
-    const resource = resources.find((r) => r.id === resourceId);
+    const resource = adminResources.find((r) => r.id === resourceId);
     if (resource) {
       setSelectedResource(resource);
       setIsResourceModalOpen(true);
     }
   };
 
-  const handleSaveResource = (resourceId: string, updatedResource: Partial<Resource>) => {
-    const updatedResources = resources.map((r) =>
-      r.id === resourceId ? { ...r, ...updatedResource } : r
-    );
-    onUpdateResources(updatedResources);
-    toast.success('Resource updated successfully');
+  const handleSaveResource = async (
+    resourceId: string,
+    updatedResource: Partial<Resource>,
+  ) => {
+    try {
+      await resourcesApi.update(resourceId, {
+        title: updatedResource.title,
+        description: updatedResource.description,
+        category: updatedResource.category
+          ? normalizeCategory(updatedResource.category)
+          : undefined,
+        is_public: updatedResource.isPublic,
+      });
+      await loadAdminData();
+      toast.success('Resource updated successfully');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not update resource'));
+    }
   };
 
-  const handleSuspendUser = (userId: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: 'suspended' } : u))
-    );
-    toast.warning('User suspended');
+  const handleSuspendUser = async (userId: string) => {
+    try {
+      await admin.suspendUser(userId);
+      await loadAdminData();
+      toast.warning('User suspended');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not suspend user'));
+    }
   };
 
-  const handleActivateUser = (userId: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: 'active' } : u))
-    );
-    toast.success('User activated');
+  const handleActivateUser = async (userId: string) => {
+    try {
+      await admin.activateUser(userId);
+      await loadAdminData();
+      toast.success('User activated');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Could not activate user'));
+    }
   };
 
   const handleThemeToggle = () => {
@@ -366,7 +445,7 @@ export function AdminApp({
 
             {currentView === 'admin-resources' && (
               <AdminResources
-                resources={resources}
+                resources={adminResources}
                 onEditResource={handleEditResource}
                 onDeleteResource={handleDeleteResource}
                 onApproveResource={handleApproveResource}

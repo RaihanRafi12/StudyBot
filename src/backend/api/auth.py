@@ -1,11 +1,6 @@
-"""
-JWT utilities for StudyBot
-"""
-from __future__ import annotations
 import jwt
 import bcrypt
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from django.conf import settings
 from ninja.security import HttpBearer
 
@@ -28,18 +23,19 @@ def create_token(user_id: str, role: str) -> str:
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
-def decode_token(token: str) -> Optional[dict]:
+def decode_token(token: str):
     try:
-        return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-    except jwt.ExpiredSignatureError:
-        return None
+        return jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
     except jwt.InvalidTokenError:
         return None
 
 
 class AuthBearer(HttpBearer):
-    """Require valid JWT. Attaches decoded payload to request.auth."""
-    def authenticate(self, request, token: str):
+    def authenticate(self, request, token):
         payload = decode_token(token)
         if payload:
             return payload
@@ -47,14 +43,12 @@ class AuthBearer(HttpBearer):
 
 
 class AdminBearer(HttpBearer):
-    """Require admin role."""
-    def authenticate(self, request, token: str):
+    def authenticate(self, request, token):
         payload = decode_token(token)
         if payload and payload.get('role') == 'admin':
             return payload
         return None
 
 
-# Convenience — attach to request for use in views
 auth = AuthBearer()
 admin_auth = AdminBearer()
