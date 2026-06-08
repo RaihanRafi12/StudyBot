@@ -1,34 +1,46 @@
 import uuid
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from django.conf import settings
 
+_pool = None
+
+
+def get_pool():
+    global _pool
+    if _pool is None:
+        db = settings.DATABASES['default']
+        _pool = psycopg2.pool.SimpleConnectionPool(
+            1,
+            20,
+            database=db['NAME'],  # Fixed: changed 'dbname' to 'database'
+            user=db['USER'],
+            password=db['PASSWORD'],
+            host=db['HOST'],
+            port=db['PORT'],
+            sslmode=db.get('OPTIONS', {}).get('sslmode', 'require'), # Ensures SSL is required
+        )
+    return _pool
+
+
 @contextmanager
 def get_cursor():
-    """Establishes a single database connection per API call (Serverless friendly)"""
-    db = settings.DATABASES['default']
-    
-    # Open a single clean connection instead of utilizing a continuous connection pool
-    conn = psycopg2.connect(
-        database=db['NAME'],
-        user=db['USER'],
-        password=db['PASSWORD'],
-        host=db['HOST'],
-        port=db['PORT'],
-        sslmode=db.get('OPTIONS', {}).get('sslmode', 'require')
-    )
+    pool = get_pool()
+    conn = pool.getconn()
     try:
         with conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 yield cur
     finally:
-        # Explicitly close the connection immediately when the request finishes
-        conn.close()
+        pool.putconn(conn)
+
 
 def new_id():
     return str(uuid.uuid4())
+
 
 def fmt_time(dt):
     if dt is None:
@@ -45,3 +57,4 @@ def fmt_time(dt):
     if seconds < 86400:
         return f'{seconds // 3600} hours ago'
     return f'{seconds // 86400} days ago'
+
