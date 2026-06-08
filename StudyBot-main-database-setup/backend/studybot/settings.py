@@ -62,8 +62,8 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXPIRE_HOURS = config('JWT_EXPIRE_HOURS', default=24, cast=int)
 
 SIGNUP_BONUS_POINTS = config('SIGNUP_BONUS_POINTS', default=20, cast=int)
-
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Schema is applied via database/schema_postgresql.sql (raw SQL, not Django ORM).
