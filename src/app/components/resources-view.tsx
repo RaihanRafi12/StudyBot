@@ -10,6 +10,7 @@ interface ResourcesViewProps {
   onView: (resourceId: string) => void;
   onRate: (resourceId: string) => void;
   viewType?: 'courses' | 'documents' | 'projects' | 'research';
+  loading?: boolean;
 }
 
 export function ResourcesView({
@@ -18,6 +19,7 @@ export function ResourcesView({
   onView,
   onRate,
   viewType,
+  loading = false,
 }: ResourcesViewProps) {
   const [sortBy, setSortBy] = useState('latest');
 
@@ -100,9 +102,13 @@ export function ResourcesView({
         </TabsList>
       </Tabs>
 
+      {loading && (
+        <p className="text-center text-muted-foreground py-8">Loading resources...</p>
+      )}
+
       {/* Resource Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sortedResources.map((resource) => (
+        {!loading && sortedResources.map((resource) => (
           <ResourceCard
             key={resource.id}
             resource={resource}
@@ -113,7 +119,7 @@ export function ResourcesView({
         ))}
       </div>
 
-      {sortedResources.length === 0 && (
+      {!loading && sortedResources.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No resources found</p>
         </div>

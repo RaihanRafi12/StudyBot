@@ -1,13 +1,7 @@
-"""
-StudyBot API Schemas  — django-ninja Pydantic models
-"""
-from __future__ import annotations
-from datetime import datetime
 from typing import List, Optional
+from datetime import datetime
 from ninja import Schema
 
-
-# ── Auth ───────────────────────────────────────────────────────
 
 class SignupSchema(Schema):
     name: str
@@ -27,7 +21,7 @@ class LoginSchema(Schema):
 class TokenSchema(Schema):
     access_token: str
     token_type: str = 'bearer'
-    user: 'UserOut'
+    user: dict
 
 
 class UserOut(Schema):
@@ -35,12 +29,12 @@ class UserOut(Schema):
     name: str
     email: str
     role: str
-    institution: Optional[str]
-    major: Optional[str]
-    year: Optional[str]
     points: int
     monthly_access_count: int
     is_active: bool
+    institution: Optional[str]
+    major: Optional[str]
+    year: Optional[str]
 
 
 class UpdateProfileSchema(Schema):
@@ -48,34 +42,6 @@ class UpdateProfileSchema(Schema):
     institution: Optional[str] = None
     major: Optional[str] = None
     year: Optional[str] = None
-
-
-# ── Resources ──────────────────────────────────────────────────
-
-class ResourceFileOut(Schema):
-    id: str
-    name: str
-    size: Optional[str]
-    file_type: Optional[str]
-
-
-class ResourceOut(Schema):
-    id: str
-    title: str
-    description: Optional[str]
-    full_details: Optional[str]
-    category: str
-    uploader: str           # uploader name (joined)
-    uploader_id: str
-    is_public: bool
-    rating: float
-    review_count: int
-    topics: Optional[List[str]]
-    external_link: Optional[str]
-    has_access: bool        # computed per-user
-    access_requested: bool  # computed per-user
-    upload_date: Optional[str]
-    files: List[ResourceFileOut] = []
 
 
 class CreateResourceSchema(Schema):
@@ -95,7 +61,31 @@ class UpdateResourceSchema(Schema):
     is_public: Optional[bool] = None
 
 
-# ── Reviews ────────────────────────────────────────────────────
+class ResourceFileOut(Schema):
+    id: str
+    name: str
+    size: Optional[str]
+    file_type: Optional[str]
+
+
+class ResourceOut(Schema):
+    id: str
+    title: str
+    description: Optional[str]
+    full_details: Optional[str]
+    category: str
+    uploader: str
+    uploader_id: str
+    is_public: bool
+    rating: float
+    review_count: int
+    topics: Optional[List[str]]
+    external_link: Optional[str]
+    has_access: bool
+    access_requested: bool
+    upload_date: Optional[str]
+    files: List[ResourceFileOut] = []
+
 
 class CreateReviewSchema(Schema):
     rating: int
@@ -110,8 +100,6 @@ class ReviewOut(Schema):
     comment: str
     created_at: datetime
 
-
-# ── Access Requests ────────────────────────────────────────────
 
 class RequestAccessSchema(Schema):
     message: Optional[str] = None
@@ -128,8 +116,6 @@ class AccessRequestOut(Schema):
     timestamp: str
 
 
-# ── Activities ─────────────────────────────────────────────────
-
 class ActivityOut(Schema):
     id: str
     type: str
@@ -138,8 +124,6 @@ class ActivityOut(Schema):
     points: Optional[int]
     time: str
 
-
-# ── Calendar ───────────────────────────────────────────────────
 
 class CreateEventSchema(Schema):
     title: str
@@ -156,16 +140,12 @@ class CalendarEventOut(Schema):
     type: str
 
 
-# ── Notifications ──────────────────────────────────────────────
-
 class NotificationOut(Schema):
     id: str
     message: str
     read: bool
     time: str
 
-
-# ── Admin ──────────────────────────────────────────────────────
 
 class UploadApprovalOut(Schema):
     id: str
@@ -199,8 +179,6 @@ class AdminUserOut(Schema):
     access_count: int
     status: str
 
-
-# ── Generic responses ──────────────────────────────────────────
 
 class MessageOut(Schema):
     message: str
