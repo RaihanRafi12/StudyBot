@@ -16,12 +16,12 @@ def get_pool():
         _pool = psycopg2.pool.SimpleConnectionPool(
             1,
             20,
-            dbname=db['NAME'],
+            database=db['NAME'],  # Fixed: changed 'dbname' to 'database'
             user=db['USER'],
             password=db['PASSWORD'],
             host=db['HOST'],
             port=db['PORT'],
-            sslmode=db.get('OPTIONS', {}).get('sslmode', 'prefer'),
+            sslmode=db.get('OPTIONS', {}).get('sslmode', 'require'), # Ensures SSL is required
         )
     return _pool
 
