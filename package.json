@@ -6,8 +6,6 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test:api": "python testing/run_with_servers.py",
-    "test:all": "python testing/run_with_servers.py --selenium"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

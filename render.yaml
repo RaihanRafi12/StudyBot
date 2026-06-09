@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: studybot-backend
+    env: python
+    rootDir: src/backend
+    buildCommand: "./build.sh"
+    startCommand: "python run_api.py"
+    plan: free
+    region: oregon
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SIGNUP_BONUS_POINTS
+        value: "20"
+      - key: DB_SSLMODE
+        value: "require"
