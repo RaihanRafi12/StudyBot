@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: ["deploy"]   # push to 'deploy' branch → triggers live deployment
+    branches: ["main"]     # push to main → triggers live deployment
   workflow_dispatch:        # can also trigger manually from GitHub UI
 
 permissions:
