@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../../lib/supabase';
 import { AdminHeader } from './admin-header';
 import { AdminSidebar } from './admin-sidebar';
 import { AdminDashboard } from './admin-dashboard';
@@ -44,290 +45,244 @@ export function AdminApp({
   const [currentView, setCurrentView] = useState('admin-dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  
-  // Resource modal states
+
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [isEditResourceModalOpen, setIsEditResourceModalOpen] = useState(false);
   const [isCourseContentModalOpen, setIsCourseContentModalOpen] = useState(false);
 
-  // Apply theme to document
+  // ── Data loaded from Supabase ────────────────────────────────────────────
+  const [accessRequests, setAccessRequests] = useState<any[]>([]);
+  const [uploadApprovals, setUploadApprovals] = useState<any[]>([]);
+  const [reportedResources, setReportedResources] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+
+  const loadAdminData = useCallback(async () => {
+    // Access requests
+    const { data: reqData } = await supabase
+      .from('access_requests')
+      .select('*, users(name), resources(title)')
+      .order('created_at', { ascending: false });
+
+    setAccessRequests(
+      (reqData ?? []).map((r: any) => ({
+        id: r.id,
+        userId: r.user_id,
+        userName: r.users?.name ?? 'Unknown',
+        resourceId: r.resource_id,
+        resourceTitle: r.resources?.title ?? 'Unknown',
+        message: r.message ?? '',
+        timestamp: new Date(r.created_at).toLocaleString(),
+        status: r.status,
+      }))
+    );
+
+    // Upload approvals — resources with status = pending
+    const { data: uploadsData } = await supabase
+      .from('resources')
+      .select('*, users(name)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    setUploadApprovals(
+      (uploadsData ?? []).map((r: any) => ({
+        id: r.id,
+        userId: r.uploader_id,
+        userName: r.users?.name ?? 'Unknown',
+        resourceTitle: r.title,
+        category: r.category,
+        timestamp: new Date(r.created_at).toLocaleString(),
+        status: r.status,
+      }))
+    );
+
+    // Reports
+    const { data: reportData } = await supabase
+      .from('reports')
+      .select('*, resources(title), users(name)')
+      .order('created_at', { ascending: false });
+
+    setReportedResources(
+      (reportData ?? []).map((r: any) => ({
+        id: r.id,
+        resourceId: r.resource_id,
+        resourceTitle: r.resources?.title ?? 'Unknown',
+        reportedBy: r.users?.name ?? 'Unknown',
+        reason: r.reason,
+        timestamp: new Date(r.created_at).toLocaleString(),
+        status: r.status,
+      }))
+    );
+
+    // Users
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    setUsers(
+      (usersData ?? []).map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role.charAt(0).toUpperCase() + u.role.slice(1),
+        institution: u.institution ?? '',
+        joinDate: new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        points: u.points,
+        uploadCount: u.upload_count ?? 0,
+        accessCount: u.access_count ?? 0,
+        status: u.status ?? 'active',
+      }))
+    );
+
+    // Activities
+    const { data: activityData } = await supabase
+      .from('activity_logs')
+      .select('*, users(name)')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    setActivities(
+      (activityData ?? []).map((a: any) => ({
+        id: a.id,
+        userId: a.user_id,
+        userName: a.users?.name ?? 'Unknown',
+        type: a.activity_type,
+        message: a.message,
+        time: new Date(a.created_at).toLocaleString(),
+      }))
+    );
+  }, []);
+
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [theme]);
 
-  // Admin data states
-  const [accessRequests, setAccessRequests] = useState([
-    {
-      id: 'req-1',
-      userId: 'user-5',
-      userName: 'James Wilson',
-      resourceId: 'res-3',
-      resourceTitle: 'Web Development Bootcamp',
-      message: 'Need this for my final year project on full-stack development',
-      timestamp: '2 hours ago',
-      status: 'pending',
-    },
-    {
-      id: 'req-2',
-      userId: 'user-14',
-      userName: 'Rachel Green',
-      resourceId: 'res-15',
-      resourceTitle: 'System Design Interview Preparation',
-      message: 'Preparing for job interviews',
-      timestamp: '5 hours ago',
-      status: 'pending',
-    },
-    {
-      id: 'req-3',
-      userId: 'user-10',
-      userName: 'Sarah Martinez',
-      resourceId: 'res-6',
-      resourceTitle: 'Social Media Dashboard',
-      message: 'Need for academic research project',
-      timestamp: '1 day ago',
-      status: 'pending',
-    },
-  ]);
+  useEffect(() => {
+    loadAdminData();
+  }, [loadAdminData]);
 
-  const [uploadApprovals, setUploadApprovals] = useState([
-    {
-      id: 'upload-1',
-      userId: 'user-16',
-      userName: 'Tom Anderson',
-      resourceTitle: 'Advanced React Patterns',
-      category: 'Documents',
-      timestamp: '1 hour ago',
-      status: 'pending',
-    },
-    {
-      id: 'upload-2',
-      userId: 'user-11',
-      userName: 'David Lee',
-      resourceTitle: 'Microservices Architecture Guide',
-      category: 'Documents',
-      timestamp: '3 hours ago',
-      status: 'pending',
-    },
-  ]);
+  // ── Admin action handlers ─────────────────────────────────────────────────
 
-  const [reportedResources, setReportedResources] = useState([
-    {
-      id: 'report-1',
-      resourceId: 'res-8',
-      resourceTitle: 'Task Management System',
-      reportedBy: 'StudentUser123',
-      reason: 'Contains outdated dependencies and deprecated code',
-      timestamp: '30 minutes ago',
-      status: 'pending',
-    },
-  ]);
-
-  const [users, setUsers] = useState([
-    {
-      id: 'user-1',
-      name: 'Alex Johnson',
-      email: 'alex.johnson@university.edu',
-      role: 'Student',
-      institution: 'University of Technology',
-      joinDate: 'Dec 10, 2025',
-      points: 24,
-      uploadCount: 5,
-      accessCount: 8,
-      status: 'active',
-    },
-    {
-      id: 'user-5',
-      name: 'James Wilson',
-      email: 'james.wilson@university.edu',
-      role: 'Student',
-      institution: 'State University',
-      joinDate: 'Jan 2, 2026',
-      points: 18,
-      uploadCount: 3,
-      accessCount: 12,
-      status: 'active',
-    },
-    {
-      id: 'user-3',
-      name: 'Prof. Michael Chen',
-      email: 'michael.chen@university.edu',
-      role: 'Faculty',
-      institution: 'University of Technology',
-      joinDate: 'Nov 20, 2025',
-      points: 45,
-      uploadCount: 12,
-      accessCount: 5,
-      status: 'active',
-    },
-  ]);
-
-  const [activities, setActivities] = useState([
-    {
-      id: 'act-1',
-      userId: 'user-5',
-      userName: 'James Wilson',
-      type: 'upload',
-      message: 'Uploaded "Data Structures Cheat Sheet"',
-      time: '1 hour ago',
-      points: 2,
-    },
-    {
-      id: 'act-2',
-      userId: 'user-1',
-      userName: 'Alex Johnson',
-      type: 'access',
-      message: 'Accessed "Machine Learning Fundamentals"',
-      time: '2 hours ago',
-      points: -4,
-    },
-    {
-      id: 'act-3',
-      userId: 'user-14',
-      userName: 'Rachel Green',
-      type: 'review',
-      message: 'Reviewed "Python Programming Guide" with 5 stars',
-      time: '3 hours ago',
-    },
-  ]);
-
-  // Admin handlers
-  const handleApproveAccess = (requestId: string) => {
-    setAccessRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'approved' } : r))
-    );
+  const handleApproveAccess = async (requestId: string) => {
+    await supabase.from('access_requests').update({ status: 'approved' }).eq('id', requestId);
+    setAccessRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'approved' } : r));
     toast.success('Access request approved');
   };
 
-  const handleRejectAccess = (requestId: string) => {
-    setAccessRequests((prev) =>
-      prev.map((r) => (r.id === requestId ? { ...r, status: 'rejected' } : r))
-    );
+  const handleRejectAccess = async (requestId: string) => {
+    await supabase.from('access_requests').update({ status: 'rejected' }).eq('id', requestId);
+    setAccessRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected' } : r));
     toast.info('Access request rejected');
   };
 
-  const handleApproveUpload = (uploadId: string) => {
-    setUploadApprovals((prev) =>
-      prev.map((u) => (u.id === uploadId ? { ...u, status: 'approved' } : u))
-    );
+  const handleApproveUpload = async (uploadId: string) => {
+    await supabase.from('resources').update({ status: 'approved' }).eq('id', uploadId);
+    setUploadApprovals(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'approved' } : u));
     toast.success('Upload approved');
   };
 
-  const handleRejectUpload = (uploadId: string) => {
-    setUploadApprovals((prev) =>
-      prev.map((u) => (u.id === uploadId ? { ...u, status: 'rejected' } : u))
-    );
+  const handleRejectUpload = async (uploadId: string) => {
+    await supabase.from('resources').update({ status: 'rejected' }).eq('id', uploadId);
+    setUploadApprovals(prev => prev.map(u => u.id === uploadId ? { ...u, status: 'rejected' } : u));
     toast.info('Upload rejected');
   };
 
-  const handleResolveReport = (reportId: string) => {
-    setReportedResources((prev) =>
-      prev.map((r) => (r.id === reportId ? { ...r, status: 'resolved' } : r))
-    );
+  const handleResolveReport = async (reportId: string) => {
+    await supabase.from('reports').update({ status: 'resolved' }).eq('id', reportId);
+    setReportedResources(prev => prev.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r));
     toast.success('Report resolved');
   };
 
-  const handleDismissReport = (reportId: string) => {
-    setReportedResources((prev) =>
-      prev.map((r) => (r.id === reportId ? { ...r, status: 'dismissed' } : r))
-    );
+  const handleDismissReport = async (reportId: string) => {
+    await supabase.from('reports').update({ status: 'dismissed' }).eq('id', reportId);
+    setReportedResources(prev => prev.map(r => r.id === reportId ? { ...r, status: 'dismissed' } : r));
     toast.info('Report dismissed');
   };
 
   const handleEditResource = (resourceId: string) => {
-    const resource = resources.find((r) => r.id === resourceId);
+    const resource = resources.find(r => r.id === resourceId);
     if (resource) {
       setSelectedResource(resource);
-      // Show course content modal for courses, regular edit modal for other resources
-      if (resource.category.toLowerCase() === 'courses') {
-        setIsCourseContentModalOpen(true);
-      } else {
-        setIsEditResourceModalOpen(true);
-      }
+      if (resource.category.toLowerCase() === 'courses') setIsCourseContentModalOpen(true);
+      else setIsEditResourceModalOpen(true);
     }
   };
 
-  const handleDeleteResource = (resourceId: string) => {
-    const updatedResources = resources.filter((r) => r.id !== resourceId);
-    onUpdateResources(updatedResources);
+  const handleDeleteResource = async (resourceId: string) => {
+    const { error } = await supabase.from('resources').delete().eq('id', resourceId);
+    if (error) { toast.error('Delete failed: ' + error.message); return; }
+    onUpdateResources(resources.filter(r => r.id !== resourceId));
     toast.success('Resource deleted permanently');
   };
 
-  const handleApproveResource = (resourceId: string) => {
-    toast.success(`Resource ${resourceId} approved`);
+  const handleApproveResource = async (resourceId: string) => {
+    await supabase.from('resources').update({ status: 'approved' }).eq('id', resourceId);
+    toast.success(`Resource approved`);
   };
 
-  const handleRejectResource = (resourceId: string) => {
-    toast.info(`Resource ${resourceId} rejected`);
+  const handleRejectResource = async (resourceId: string) => {
+    await supabase.from('resources').update({ status: 'rejected' }).eq('id', resourceId);
+    toast.info(`Resource rejected`);
   };
 
   const handleRequestChanges = (resourceId: string) => {
     toast.info(`Requested changes for resource ${resourceId}`);
   };
 
-  const handleRequestCourseItemChanges = (resourceId: string, itemId: string) => {
-    toast.warning(`Requested changes for item ${itemId} in course ${resourceId}`);
+  const handleRequestCourseItemChanges = (_resourceId: string, itemId: string) => {
+    toast.warning(`Requested changes for item ${itemId}`);
   };
 
-  const handleRemoveCourseItem = (resourceId: string, itemId: string) => {
-    toast.success(`Removed item ${itemId} from course ${resourceId}`);
+  const handleRemoveCourseItem = (_resourceId: string, itemId: string) => {
+    toast.success(`Removed item ${itemId}`);
   };
 
   const handleViewResource = (resourceId: string) => {
-    const resource = resources.find((r) => r.id === resourceId);
-    if (resource) {
-      setSelectedResource(resource);
-      setIsResourceModalOpen(true);
-    }
+    const resource = resources.find(r => r.id === resourceId);
+    if (resource) { setSelectedResource(resource); setIsResourceModalOpen(true); }
   };
 
-  const handleSaveResource = (resourceId: string, updatedResource: Partial<Resource>) => {
-    const updatedResources = resources.map((r) =>
-      r.id === resourceId ? { ...r, ...updatedResource } : r
-    );
-    onUpdateResources(updatedResources);
+  const handleSaveResource = async (resourceId: string, updatedResource: Partial<Resource>) => {
+    const { error } = await supabase.from('resources').update({
+      title: updatedResource.title,
+      description: updatedResource.description,
+      is_public: updatedResource.isPublic,
+    }).eq('id', resourceId);
+    if (error) { toast.error('Update failed: ' + error.message); return; }
+    onUpdateResources(resources.map(r => r.id === resourceId ? { ...r, ...updatedResource } : r));
     toast.success('Resource updated successfully');
   };
 
-  const handleSuspendUser = (userId: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: 'suspended' } : u))
-    );
+  const handleSuspendUser = async (userId: string) => {
+    await supabase.from('users').update({ status: 'suspended' }).eq('id', userId);
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'suspended' } : u));
     toast.warning('User suspended');
   };
 
-  const handleActivateUser = (userId: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: 'active' } : u))
-    );
+  const handleActivateUser = async (userId: string) => {
+    await supabase.from('users').update({ status: 'active' }).eq('id', userId);
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active' } : u));
     toast.success('User activated');
   };
 
-  const handleThemeToggle = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
+  const handleThemeToggle = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
   const handleNavigate = (view: string) => {
     setCurrentView(view);
-    // Close sidebar on mobile
-    if (window.innerWidth < 1024) {
-      setIsSidebarOpen(false);
-    }
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
 
   const pendingCount =
-    accessRequests.filter((r) => r.status === 'pending').length +
-    uploadApprovals.filter((u) => u.status === 'pending').length +
-    reportedResources.filter((r) => r.status === 'pending').length;
+    accessRequests.filter(r => r.status === 'pending').length +
+    uploadApprovals.filter(u => u.status === 'pending').length +
+    reportedResources.filter(r => r.status === 'pending').length;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex flex-col h-screen overflow-hidden">
-        {/* Admin Header */}
         <AdminHeader
           adminName={adminName}
           theme={theme}
@@ -335,9 +290,7 @@ export function AdminApp({
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           onLogout={onLogout}
         />
-
         <div className="flex flex-1 overflow-hidden">
-          {/* Admin Sidebar */}
           <AdminSidebar
             currentView={currentView}
             onNavigate={handleNavigate}
@@ -345,8 +298,6 @@ export function AdminApp({
             isOpen={isSidebarOpen}
             pendingCount={pendingCount}
           />
-
-          {/* Main Content */}
           <main className="flex-1 overflow-y-auto overflow-x-hidden bg-muted/5">
             {currentView === 'admin-dashboard' && (
               <AdminDashboard
@@ -361,9 +312,7 @@ export function AdminApp({
                 onDismissReport={handleDismissReport}
               />
             )}
-
             {currentView === 'admin-activity' && <AdminActivity activities={activities} />}
-
             {currentView === 'admin-resources' && (
               <AdminResources
                 resources={resources}
@@ -375,7 +324,6 @@ export function AdminApp({
                 onViewResource={handleViewResource}
               />
             )}
-
             {currentView === 'admin-users' && (
               <AdminUsers
                 users={users}
@@ -383,7 +331,6 @@ export function AdminApp({
                 onActivateUser={handleActivateUser}
               />
             )}
-
             {currentView === 'settings' && (
               <AdminSettings
                 theme={theme}
@@ -396,7 +343,6 @@ export function AdminApp({
           </main>
         </div>
       </div>
-
       <Toaster />
       <ResourceDetailModal
         resource={selectedResource}
